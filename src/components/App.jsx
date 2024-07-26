@@ -1,85 +1,74 @@
-import React, { Component } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import SearchBar from "./SearchBar";
-import ImageGallery from "./ImageGallery";
+import SearchBar from "./SearchBar/SearchBar";
+import ImageGallery from "./ImageGallery/ImageGallery";
 import Modal from "./Modal/Modal";
-import Loader from "./Loader";
-import Button from "./Button";
+import Loader from "./Loader/Loader";
+import Button from "./Button/Button";
 
-export default class App extends Component {
-  state = {
-    images: [],
-    isLoading: false,
-    error: null,
-    page: 1,
-    query: "",
-    showModal: false,
-    largeImageURL: "",
+export default function App() {
+  const [images, setImages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setModal] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!query) return;
+
+    const fetchGallery = async () => {
+      setIsLoading(true);
+      const apiKey = "43680485-d2c13a63d690cef752ef6eeaf";
+
+      try {
+        const response = await axios.get(
+          `https://pixabay.com/api/?q=${query}&page=${page}&key=${apiKey}&image_type=photo&orientation=horizontal&per_page=12`,
+        );
+        const data = response.data.hits;
+        setImages((prevImages) =>
+          page === 1 ? data : [...prevImages, ...data],
+        );
+      } catch (error) {
+        setError(error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchGallery();
+  }, [query, page]);
+
+  const handleSubmit = (query) => {
+    setQuery(query);
+    setPage(1);
+    setImages([]);
   };
 
-  componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.query !== this.state.query ||
-      prevState.page !== this.state.page
-    ) {
-      this.fetchGallery();
-    }
-  }
-
-  fetchGallery = async () => {
-    const { query, page } = this.state;
-    this.setState({ isLoading: true });
-    const apiKey = "43731896-5811be0b712c2ad5da2549bb8";
-
-    try {
-      const response = await axios.get(
-        `https://pixabay.com/api/?q=${query}&page=${page}&key=${apiKey}&image_type=photo&orientation=horizontal&per_page=12`,
-      );
-      const data = response.data;
-      this.setState((prevState) => ({
-        images: page === 1 ? data.hits : [...prevState.images, ...data.hits],
-      }));
-    } catch (error) {
-      this.setState({ error });
-    } finally {
-      this.setState({ isLoading: false });
-    }
+  const handleImageClick = (largeImageURL) => {
+    setLargeImageURL(largeImageURL);
+    setModal(true);
   };
 
-  handleSubmit = (query) => {
-    this.setState({ query, page: 1 });
+  const closeModal = () => {
+    setModal(false);
+    setLargeImageURL("");
   };
 
-  handleImageClick = (largeImageURL) => {
-    console.log("Image clicked:", largeImageURL); // Debug log
-    this.setState({ largeImageURL, showModal: true });
+  const handleLoadMore = () => {
+    setPage((prevPage) => prevPage + 1);
   };
 
-  closeModal = () => {
-    this.setState({ showModal: false, largeImageURL: "" });
-  };
-
-  handleLoadMore = () => {
-    this.setState((prevState) => ({
-      page: prevState.page + 1,
-    }));
-  };
-
-  render() {
-    const { images, largeImageURL, showModal, isLoading, error } = this.state;
-    return (
-      <div className="App">
-        <SearchBar onSubmit={this.handleSubmit} />
-        {isLoading && <Loader />}
-        <ImageGallery images={images} onImageClick={this.handleImageClick} />
-        {images.length > 0 && !isLoading && (
-          <Button onClick={this.handleLoadMore} />
-        )}
-        {showModal && (
-          <Modal largeImageURL={largeImageURL} onClose={this.closeModal} />
-        )}
-        {error && <p>{error.message}</p>}
-      </div>
-    );
-  }
+  return (
+    <div className="App">
+      <SearchBar onSubmit={handleSubmit} />
+      {isLoading && <Loader />}
+      <ImageGallery images={images} onImageClick={handleImageClick} />
+      {images.length > 0 && !isLoading && <Button onClick={handleLoadMore} />}
+      {showModal && (
+        <Modal largeImageURL={largeImageURL} onClose={closeModal} />
+      )}
+      {error && <p>{error.message}</p>}
+    </div>
+  );
 }
